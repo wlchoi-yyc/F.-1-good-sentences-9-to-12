@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>佳句背誦小遊戲</title>
+<style>
+  body { font-family: "Noto Sans TC", sans-serif; background: #f0f4f8; margin: 0; padding: 20px; }
+  h1, h2 { text-align: center; }
+  .game-btn { display: block; margin: 10px auto; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+  #game, #menu { display: none; }
+  .sentence-part { display: inline-block; padding: 5px 10px; margin: 5px; border: 1px solid #333; background: #fff; cursor: grab; }
+  .dropzone { min-height: 30px; border: 1px dashed #aaa; padding: 10px; margin: 5px; background: #e0e0e0; }
+  #score { font-weight: bold; text-align: center; margin: 10px; }
+</style>
+</head>
+<body>
+
+<h1>佳句背誦小遊戲</h1>
+
+<div id="menu">
+  <p>這是四個不同的遊戲，幫助你熟記以下四句佳句：</p>
+  <ol>
+    <li>我的心猛然感到一種說不出的惆悵，一股苦澀的味道翻上心頭，就像吞了一口難咽的中藥；串串淚水，像斷了線的珠子，泉湧般順着臉頰滾落下來。</li>
+    <li>迷茫、彷徨、悵惘的思緒，纏繞着我，使我異常痛苦。我癡呆呆地站着，心裡上上下下地翻滾折騰，五臟六腑都彷彿挪動了位置。</li>
+    <li>我的鼻子都氣歪了，心裡那股火氣，就像火球一樣在胸膛裡亂滾；又像火山內熾熱的岩漿在湧動，彷彿就要沖決而出了。</li>
+    <li>我聞訊大吃一驚，猶如晴天響起一聲霹雷，平地卷起一股旋風，倏地打了個寒噤，驚得幾乎躥了起來。一股無名的恐懼，毒蛇的纏在我心上，久久不能擺脫。</li>
+  </ol>
+  <button class="game-btn" onclick="startGame(1)">開始【佳句接龍】</button>
+  <button class="game-btn" onclick="startGame(2)">開始【佳句打地鼠】</button>
+  <button class="game-btn" onclick="startGame(3)">開始【佳句填空】</button>
+  <button class="game-btn" onclick="startGame(4)">開始【佳句連連看】</button>
+</div>
+
+<div id="game">
+  <h2 id="gameTitle"></h2>
+  <div id="score">分數：0</div>
+  <div id="gameArea"></div>
+  <button class="game-btn" onclick="backToMenu()">返回主選單</button>
+</div>
+
+<script>
+const sentences = [
+  "我的心猛然感到一種說不出的惆悵，一股苦澀的味道翻上心頭，就像吞了一口難咽的中藥；串串淚水，像斷了線的珠子，泉湧般順着臉頰滾落下來。",
+  "迷茫、彷徨、悵惘的思緒，纏繞着我，使我異常痛苦。我癡呆呆地站着，心裡上上下下地翻滾折騰，五臟六腑都彷彿挪動了位置。",
+  "我的鼻子都氣歪了，心裡那股火氣，就像火球一樣在胸膛裡亂滾；又像火山內熾熱的岩漿在湧動，彷彿就要沖決而出了。",
+  "我聞訊大吃一驚，猶如晴天響起一聲霹雷，平地卷起一股旋風，倏地打了個寒噤，驚得幾乎躥了起來。一股無名的恐懼，毒蛇的纏在我心上，久久不能擺脫。"
+];
+
+let score = 0;
+
+function backToMenu() {
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('menu').style.display = 'block';
+}
+
+function startGame(gameId) {
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  document.getElementById('gameArea').innerHTML = '';
+  document.getElementById('score').textContent = `分數：${score}`;
+  let area = document.getElementById('gameArea');
+  let title = document.getElementById('gameTitle');
+
+  if (gameId === 1) {
+    title.textContent = "佳句接龍";
+    let s = sentences[0].split(/[，；。]/).filter(t => t);
+    s = s.sort(() => Math.random() - 0.5);
+    s.forEach(part => {
+      let span = document.createElement('span');
+      span.className = 'sentence-part';
+      span.textContent = part;
+      span.draggable = true;
+      span.ondragstart = e => e.dataTransfer.setData('text/plain', e.target.textContent);
+      area.appendChild(span);
+    });
+    let dropzone = document.createElement('div');
+    dropzone.className = 'dropzone';
+    dropzone.ondragover = e => e.preventDefault();
+    dropzone.ondrop = e => {
+      e.preventDefault();
+      let data = e.dataTransfer.getData('text/plain');
+      let p = document.createElement('span');
+      p.textContent = data;
+      dropzone.appendChild(p);
+      checkOrder(dropzone, 1);
+    };
+    area.appendChild(dropzone);
+  } else if (gameId === 2) {
+    title.textContent = "佳句打地鼠";
+    let btns = sentences.flatMap(s => s.split(/[，；。]/).filter(t => t)).sort(() => Math.random() - 0.5);
+    btns.slice(0, 10).forEach(text => {
+      let btn = document.createElement('button');
+      btn.className = 'game-btn';
+      btn.textContent = text;
+      btn.onclick = () => {
+        if (sentences.some(s => s.includes(text))) {
+          score += 10;
+        } else {
+          score -= 5;
+        }
+        document.getElementById('score').textContent = `分數：${score}`;
+      };
+      area.appendChild(btn);
+    });
+  } else if (gameId === 3) {
+    title.textContent = "佳句填空";
+    let s = sentences[1];
+    let missing = "心裡上上下下地翻滾折騰";
+    let display = s.replace(missing, "______");
+    let p = document.createElement('p');
+    p.textContent = display;
+    area.appendChild(p);
+    let options = ["心裡上上下下地翻滾折騰", "迷茫彷徨", "無名的恐懼"];
+    options.forEach(o => {
+      let btn = document.createElement('button');
+      btn.className = 'game-btn';
+      btn.textContent = o;
+      btn.onclick = () => {
+        if (o === missing) {
+          score += 10;
+        } else {
+          score -= 5;
+        }
+        document.getElementById('score').textContent = `分數：${score}`;
+      };
+      area.appendChild(btn);
+    });
+  } else if (gameId === 4) {
+    title.textContent = "佳句連連看";
+    let parts = ["我的鼻子都氣歪了", "心裡那股火氣", "像火球", "又像火山內熾熱的岩漿"];
+    let targets = [...parts].sort(() => Math.random() - 0.5);
+    targets.forEach(t => {
+      let span = document.createElement('div');
+      span.className = 'dropzone';
+      span.textContent = "放置正確短語";
+      span.ondragover = e => e.preventDefault();
+      span.ondrop = e => {
+        e.preventDefault();
+        let data = e.dataTransfer.getData('text/plain');
+        if (data === t) {
+          span.textContent = data;
+          score += 10;
+        } else {
+          score -= 5;
+        }
+        document.getElementById('score').textContent = `分數：${score}`;
+      };
+      area.appendChild(span);
+    });
+    parts.forEach(p => {
+      let span = document.createElement('span');
+      span.className = 'sentence-part';
+      span.textContent = p;
+      span.draggable = true;
+      span.ondragstart = e => e.dataTransfer.setData('text/plain', p);
+      area.appendChild(span);
+    });
+  }
+}
+
+function checkOrder(dropzone, id) {
+  let correct = sentences[0].split(/[，；。]/).filter(t => t);
+  let current = Array.from(dropzone.children).map(c => c.textContent);
+  if (current.join('') === correct.join('')) {
+    score += 10;
+    document.getElementById('score').textContent = `分數：${score}`;
+  }
+}
+document.getElementById('menu').style.display = 'block';
+</script>
+
+</body>
+</html>
