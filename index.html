@@ -1,27 +1,24 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<title>佳句背誦遊戲</title>
+<meta charset="UTF-8" />
+<title>佳句背誦闖關遊戲</title>
 <style>
 body { font-family: "Noto Sans TC", sans-serif; background: #f0f4f8; margin: 0; padding: 20px; }
 h1, h2 { text-align: center; }
 .game-btn { display: block; margin: 10px auto; padding: 10px 20px; font-size: 16px; cursor: pointer; }
 #game, #result { display: none; text-align: center; }
-.sentence-part, .option { display: inline-block; padding: 5px 10px; margin: 5px; border: 1px solid #333; background: #fff; cursor: grab; }
+.sentence-part, .option { display: inline-block; padding: 5px 10px; margin: 5px; border: 1px solid #333; background: #fff; cursor: pointer; }
 .dropzone { min-height: 30px; border: 1px dashed #aaa; padding: 10px; margin: 5px; background: #e0e0e0; }
 </style>
 </head>
 <body>
 
-<h1>佳句背誦小遊戲</h1>
+<h1>佳句背誦闖關遊戲</h1>
 
 <div id="menu">
-  <p>請選擇一個遊戲模式來開始練習四句佳句：</p>
-  <button class="game-btn" onclick="startGame(1)">佳句接龍</button>
-  <button class="game-btn" onclick="startGame(2)">佳句打地鼠</button>
-  <button class="game-btn" onclick="startGame(3)">佳句填空</button>
-  <button class="game-btn" onclick="startGame(4)">佳句連連看</button>
+  <p>依次完成四個遊戲，每個遊戲有三關，每關包含所有四句佳句，必須全對才能進入下一關。加油！</p>
+  <button class="game-btn" onclick="startGame()">開始遊戲</button>
 </div>
 
 <div id="game">
@@ -38,159 +35,171 @@ const sentences = [
   "我的鼻子都氣歪了，心裡那股火氣，就像火球一樣在胸膛裡亂滾；又像火山內熾熱的岩漿在湧動，彷彿就要沖決而出了。",
   "我聞訊大吃一驚，猶如晴天響起一聲霹雷，平地卷起一股旋風，倏地打了個寒噤，驚得幾乎躥了起來。一股無名的恐懼，毒蛇的纏在我心上，久久不能擺脫。"
 ];
-let currentGame = 1;
-let currentSentenceIndex = 0;
+
+let gameIndex = 0; // 0-3
+let levelIndex = 0; // 0-2
 let score = 0;
 
-function backToMenu() {
-  document.getElementById('game').style.display = 'none';
-  document.getElementById('menu').style.display = 'block';
-  document.getElementById('result').style.display = 'none';
-}
-
-function startGame(gameId) {
-  currentGame = gameId;
-  currentSentenceIndex = 0;
+function startGame() {
+  gameIndex = 0;
+  levelIndex = 0;
   score = 0;
   document.getElementById('menu').style.display = 'none';
   document.getElementById('game').style.display = 'block';
-  document.getElementById('result').style.display = 'none';
-  loadSentence();
+  loadLevel();
 }
 
-function loadSentence() {
-  document.getElementById('score').textContent = `分數：${score}`;
+function loadLevel() {
   document.getElementById('result').style.display = 'none';
-  let titleArr = ["佳句接龍", "佳句打地鼠", "佳句填空", "佳句連連看"];
-  document.getElementById('gameTitle').textContent = `${titleArr[currentGame - 1]} - 第 ${currentSentenceIndex + 1} 句`;
+  document.getElementById('score').textContent = `分數：${score}`;
+  let gameTitles = ["佳句接龍", "佳句打地鼠", "佳句填空", "佳句連連看"];
+  document.getElementById('gameTitle').textContent = `${gameTitles[gameIndex]} - 第 ${levelIndex + 1} 關`;
   let area = document.getElementById('gameArea');
   area.innerHTML = '';
-  let s = sentences[currentSentenceIndex];
 
-  if (currentGame === 1) { // 佳句接龍
-    let parts = s.split(/[，；。]/).filter(p => p);
-    parts = parts.sort(() => Math.random() - 0.5);
-    parts.forEach(p => {
-      let span = document.createElement('span');
-      span.className = 'sentence-part';
-      span.textContent = p;
-      span.draggable = true;
-      span.ondragstart = e => e.dataTransfer.setData('text/plain', e.target.textContent);
-      area.appendChild(span);
-    });
-    let dropzone = document.createElement('div');
-    dropzone.className = 'dropzone';
-    dropzone.ondragover = e => e.preventDefault();
-    dropzone.ondrop = e => {
-      e.preventDefault();
-      let data = e.dataTransfer.getData('text/plain');
-      let p = document.createElement('span');
-      p.textContent = data;
-      dropzone.appendChild(p);
-      checkOrder(dropzone);
-    };
-    area.appendChild(dropzone);
-  } else if (currentGame === 2) { // 打地鼠
-    let parts = s.split(/[，；。]/).filter(p => p);
-    let extra = ["隨便的句子", "無關短語", "假短語"];
-    let mixed = parts.concat(extra).sort(() => Math.random() - 0.5);
-    mixed.forEach(t => {
-      let btn = document.createElement('button');
-      btn.className = 'game-btn';
-      btn.textContent = t;
-      btn.onclick = () => {
-        if (parts.includes(t)) {
-          score += 10;
-          showResult(true);
+  let currentSentences = [...sentences];
+  let correctCount = 0;
+
+  function finishLevel() {
+    if (correctCount === 4) {
+      levelIndex++;
+      if (levelIndex < 3) {
+        document.getElementById('result').innerHTML = `✅ 恭喜過關！<button onclick='loadLevel()'>下一關</button>`;
+        document.getElementById('result').style.display = 'block';
+      } else {
+        gameIndex++;
+        levelIndex = 0;
+        if (gameIndex < 4) {
+          document.getElementById('result').innerHTML = `🎉 遊戲完成！<button onclick='loadLevel()'>進入下一個遊戲</button>`;
+          document.getElementById('result').style.display = 'block';
         } else {
-          score -= 5;
-          showResult(false);
+          document.getElementById('gameArea').innerHTML = `🎉 恭喜你成功完成！<br>累積分數：${score}<br><button onclick='location.reload()'>重新開始</button>`;
+          document.getElementById('gameTitle').textContent = '';
         }
-      };
-      area.appendChild(btn);
-    });
-  } else if (currentGame === 3) { // 填空
-    let missing = s.split(/[，；。]/).filter(p => p)[1];
-    let display = s.replace(missing, "______");
+      }
+    } else {
+      document.getElementById('result').innerHTML = `❌ 有錯誤，請重新挑戰本關！<button onclick='loadLevel()'>重試</button>`;
+      document.getElementById('result').style.display = 'block';
+    }
+  }
+
+  currentSentences.forEach((s, idx) => {
     let p = document.createElement('p');
-    p.textContent = display;
+    p.textContent = `【第${idx + 1}句】`;
     area.appendChild(p);
-    let options = [missing, "隨便短語", "假句子"].sort(() => Math.random() - 0.5);
-    options.forEach(o => {
-      let btn = document.createElement('button');
-      btn.className = 'game-btn option';
-      btn.textContent = o;
-      btn.onclick = () => {
-        if (o === missing) {
-          score += 10;
-          showResult(true);
-        } else {
-          score -= 5;
-          showResult(false);
-        }
-      };
-      area.appendChild(btn);
-    });
-  } else if (currentGame === 4) { // 連連看
-    let parts = s.split(/[，；。]/).filter(p => p);
-    let targets = [...parts].sort(() => Math.random() - 0.5);
-    targets.forEach(t => {
+
+    if (gameIndex === 0) { // 佳句接龍
+      let parts = s.split(/[，；。]/).filter(p => p);
+      parts = parts.sort(() => Math.random() - 0.5);
+      parts.forEach(part => {
+        let span = document.createElement('span');
+        span.className = 'sentence-part';
+        span.textContent = part;
+        span.draggable = true;
+        span.ondragstart = e => e.dataTransfer.setData('text/plain', e.target.textContent);
+        area.appendChild(span);
+      });
       let dz = document.createElement('div');
       dz.className = 'dropzone';
-      dz.textContent = "放置短語";
       dz.ondragover = e => e.preventDefault();
       dz.ondrop = e => {
         e.preventDefault();
         let data = e.dataTransfer.getData('text/plain');
-        if (data === t) {
-          dz.textContent = data;
+        let sp = document.createElement('span');
+        sp.textContent = data;
+        dz.appendChild(sp);
+        let correct = s.split(/[，；。]/).filter(p => p);
+        let current = Array.from(dz.children).map(c => c.textContent);
+        if (current.join('') === correct.join('')) {
           score += 10;
-          showResult(true);
-        } else {
-          score -= 5;
-          showResult(false);
+          correctCount++;
+          dz.style.background = '#c8f7c5';
+        } else if (current.length === correct.length) {
+          dz.style.background = '#f7c5c5';
         }
       };
       area.appendChild(dz);
-    });
-    parts.forEach(p => {
-      let span = document.createElement('span');
-      span.className = 'sentence-part';
-      span.textContent = p;
-      span.draggable = true;
-      span.ondragstart = e => e.dataTransfer.setData('text/plain', p);
-      area.appendChild(span);
-    });
-  }
-}
-
-function checkOrder(dropzone) {
-  let correct = sentences[currentSentenceIndex].split(/[，；。]/).filter(t => t);
-  let current = Array.from(dropzone.children).map(c => c.textContent);
-  if (current.join('') === correct.join('')) {
-    score += 10;
-    showResult(true);
-  } else if (current.length === correct.length) {
-    score -= 5;
-    showResult(false);
-  }
-}
-
-function showResult(isCorrect) {
-  document.getElementById('result').style.display = 'block';
-  document.getElementById('result').innerHTML = isCorrect ? "✅ 正確！<button onclick='nextSentence()'>下一關</button>"
-    : "❌ 錯誤！<button onclick='nextSentence()'>下一關</button>";
-  document.getElementById('score').textContent = `分數：${score}`;
-}
-
-function nextSentence() {
-  currentSentenceIndex++;
-  if (currentSentenceIndex < 4) {
-    loadSentence();
-  } else {
-    document.getElementById('gameArea').innerHTML = `🎉 完成所有佳句！<br>總分：${score}<br><button onclick='backToMenu()'>回主選單</button>`;
-    document.getElementById('result').style.display = 'none';
-  }
+    } else if (gameIndex === 1) { // 打地鼠
+      let parts = s.split(/[，；。]/).filter(p => p);
+      let options = parts.concat(["亂入片段", "干擾短語"]);
+      options = options.sort(() => Math.random() - 0.5);
+      options.forEach(opt => {
+        let btn = document.createElement('button');
+        btn.className = 'game-btn';
+        btn.textContent = opt;
+        btn.onclick = () => {
+          if (parts.includes(opt)) {
+            score += 10;
+            correctCount++;
+            btn.style.background = '#c8f7c5';
+            btn.disabled = true;
+          } else {
+            score -= 5;
+            btn.style.background = '#f7c5c5';
+          }
+          if (correctCount === 4) finishLevel();
+        };
+        area.appendChild(btn);
+      });
+    } else if (gameIndex === 2) { // 填空
+      let parts = s.split(/[，；。]/).filter(p => p);
+      let missing = parts[1];
+      let display = s.replace(missing, '______');
+      let displayP = document.createElement('p');
+      displayP.textContent = display;
+      area.appendChild(displayP);
+      let opts = [missing, "亂填短語", "假短語"].sort(() => Math.random() - 0.5);
+      opts.forEach(o => {
+        let btn = document.createElement('button');
+        btn.className = 'game-btn option';
+        btn.textContent = o;
+        btn.onclick = () => {
+          if (o === missing) {
+            score += 10;
+            correctCount++;
+            btn.style.background = '#c8f7c5';
+          } else {
+            score -= 5;
+            btn.style.background = '#f7c5c5';
+          }
+          if (correctCount === 4) finishLevel();
+        };
+        area.appendChild(btn);
+      });
+    } else if (gameIndex === 3) { // 連連看
+      let parts = s.split(/[，；。]/).filter(p => p);
+      let targets = [...parts].sort(() => Math.random() - 0.5);
+      targets.forEach(t => {
+        let dz = document.createElement('div');
+        dz.className = 'dropzone';
+        dz.textContent = '放置短語';
+        dz.ondragover = e => e.preventDefault();
+        dz.ondrop = e => {
+          e.preventDefault();
+          let data = e.dataTransfer.getData('text/plain');
+          if (data === t) {
+            dz.textContent = data;
+            dz.style.background = '#c8f7c5';
+            score += 10;
+            correctCount++;
+          } else {
+            score -= 5;
+            dz.style.background = '#f7c5c5';
+          }
+          if (correctCount === 4) finishLevel();
+        };
+        area.appendChild(dz);
+      });
+      parts.forEach(p => {
+        let span = document.createElement('span');
+        span.className = 'sentence-part';
+        span.textContent = p;
+        span.draggable = true;
+        span.ondragstart = e => e.dataTransfer.setData('text/plain', p);
+        area.appendChild(span);
+      });
+    }
+  });
 }
 </script>
 </body>
