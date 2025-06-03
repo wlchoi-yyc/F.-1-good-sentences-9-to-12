@@ -4,12 +4,13 @@
 <meta charset="UTF-8" />
 <title>佳句背誦闖關遊戲</title>
 <style>
-body { font-family: "Noto Sans TC", sans-serif; background: #f0f4f8; margin: 0; padding: 20px; }
-h1, h2 { text-align: center; }
-.game-btn { display: block; margin: 10px auto; padding: 10px 20px; font-size: 16px; cursor: pointer; }
-#game, #result { display: none; text-align: center; }
-.sentence-part, .option { display: inline-block; padding: 5px 10px; margin: 5px; border: 1px solid #333; background: #fff; cursor: pointer; }
-.dropzone { min-height: 30px; border: 1px dashed #aaa; padding: 10px; margin: 5px; background: #e0e0e0; }
+  body { font-family: "Noto Sans TC", sans-serif; background: #f0f4f8; margin: 0; padding: 20px; }
+  h1, h2 { text-align: center; }
+  .game-btn { display: block; margin: 10px auto; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+  #game, #result { display: none; text-align: center; }
+  .sentence-part, .option { display: inline-block; padding: 5px 10px; margin: 5px; border: 1px solid #333; background: #fff; cursor: pointer; }
+  .dropzone { min-height: 30px; border: 1px dashed #aaa; padding: 10px; margin: 5px; background: #e0e0e0; }
+  .disabled { pointer-events: none; opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -40,10 +41,15 @@ let gameIndex = 0; // 0-3
 let levelIndex = 0; // 0-2
 let score = 0;
 
+function updateScoreDisplay() {
+  document.getElementById('score').textContent = `分數：${score}`;
+}
+
 function startGame() {
   gameIndex = 0;
   levelIndex = 0;
   score = 0;
+  updateScoreDisplay();
   document.getElementById('menu').style.display = 'none';
   document.getElementById('game').style.display = 'block';
   loadLevel();
@@ -51,13 +57,13 @@ function startGame() {
 
 function loadLevel() {
   document.getElementById('result').style.display = 'none';
-  document.getElementById('score').textContent = `分數：${score}`;
-  let gameTitles = ["佳句接龍", "佳句打地鼠", "佳句填空", "佳句連連看"];
-  document.getElementById('gameTitle').textContent = `${gameTitles[gameIndex]} - 第 ${levelIndex + 1} 關`;
-  let area = document.getElementById('gameArea');
-  area.innerHTML = '';
+  updateScoreDisplay();
 
-  let currentSentences = [...sentences];
+  const gameTitles = ["佳句接龍", "佳句打地鼠", "佳句填空", "佳句連連看"];
+  document.getElementById('gameTitle').textContent = `${gameTitles[gameIndex]} - 第 ${levelIndex + 1} 關`;
+
+  const area = document.getElementById('gameArea');
+  area.innerHTML = '';
   let correctCount = 0;
 
   function finishLevel() {
@@ -83,121 +89,193 @@ function loadLevel() {
     }
   }
 
-  currentSentences.forEach((s, idx) => {
-    let p = document.createElement('p');
-    p.textContent = `【第${idx + 1}句】`;
-    area.appendChild(p);
+  sentences.forEach((s, idx) => {
+    const sentenceWrapper = document.createElement('div');
+    sentenceWrapper.style.marginBottom = '20px';
+    area.appendChild(sentenceWrapper);
 
-    if (gameIndex === 0) { // 佳句接龍
-      let parts = s.split(/[，；。]/).filter(p => p);
-      parts = parts.sort(() => Math.random() - 0.5);
-      parts.forEach(part => {
-        let span = document.createElement('span');
+    const p = document.createElement('p');
+    p.textContent = `【第${idx + 1}句】`;
+    sentenceWrapper.appendChild(p);
+
+    const correctParts = s.split(/[，；。]/).filter(p => p);
+    if (gameIndex === 0) {
+      // 佳句接龍：必須按正確順序放入
+      let shuffledParts = [...correctParts].sort(() => Math.random() - 0.5);
+      let placedCount = 0;
+      let sentenceDone = false;
+
+      // 顯示可拖曳的短語
+      shuffledParts.forEach(part => {
+        const span = document.createElement('span');
         span.className = 'sentence-part';
         span.textContent = part;
         span.draggable = true;
         span.ondragstart = e => e.dataTransfer.setData('text/plain', e.target.textContent);
-        area.appendChild(span);
+        sentenceWrapper.appendChild(span);
       });
-      let dz = document.createElement('div');
+
+      // 建立 dropzone
+      const dz = document.createElement('div');
       dz.className = 'dropzone';
       dz.ondragover = e => e.preventDefault();
       dz.ondrop = e => {
         e.preventDefault();
-        let data = e.dataTransfer.getData('text/plain');
-        let sp = document.createElement('span');
-        sp.textContent = data;
-        dz.appendChild(sp);
-        let correct = s.split(/[，；。]/).filter(p => p);
-        let current = Array.from(dz.children).map(c => c.textContent);
-        if (current.join('') === correct.join('')) {
-          score += 10;
-          correctCount++;
-          dz.style.background = '#c8f7c5';
-        } else if (current.length === correct.length) {
+        if (sentenceDone) return; // 已經過關，不再接受新的拖放
+        const data = e.dataTransfer.getData('text/plain');
+        if (data === correctParts[placedCount]) {
+          const sp = document.createElement('span');
+          sp.textContent = data;
+          dz.appendChild(sp);
+          placedCount++;
+          if (placedCount === correctParts.length) {
+            // 本句過關
+            sentenceDone = true;
+            dz.style.background = '#c8f7c5';
+            score += 10;
+            updateScoreDisplay();
+            correctCount++;
+            finishLevelIfNeeded();
+          } else {
+            // 正確放下一段，暫時不改變背景，等待放滿
+            dz.style.background = '#e0e0e0';
+          }
+        } else {
+          // 放錯，閃紅並扣分
           dz.style.background = '#f7c5c5';
+          score -= 5;
+          updateScoreDisplay();
+          setTimeout(() => {
+            if (!sentenceDone) dz.style.background = '#e0e0e0';
+          }, 500);
         }
       };
-      area.appendChild(dz);
-    } else if (gameIndex === 1) { // 打地鼠
-      let parts = s.split(/[，；。]/).filter(p => p);
-      let options = parts.concat(["亂入片段", "干擾短語"]);
+      sentenceWrapper.appendChild(dz);
+
+      function finishLevelIfNeeded() {
+        if (correctCount === 4) finishLevel();
+      }
+
+    } else if (gameIndex === 1) {
+      // 佳句打地鼠：需針對每句點擊 1 段才算該句答對
+      const parts = correctParts.map(text => ({ text, sentenceIdx: idx }));
+      let answered = false;
+
+      // 建立 4 個選項：正確短語 + 3 個干擾（其中兩個是固定文字，確保 4 個按鈕）
+      let options = [...parts.map(pObj => pObj.text), "亂入片段", "假短語", "干擾短語"];
       options = options.sort(() => Math.random() - 0.5);
+
       options.forEach(opt => {
-        let btn = document.createElement('button');
+        const btn = document.createElement('button');
         btn.className = 'game-btn';
         btn.textContent = opt;
         btn.onclick = () => {
-          if (parts.includes(opt)) {
-            score += 10;
-            correctCount++;
+          if (answered) return;
+          if (parts.some(pObj => pObj.text === opt)) {
+            // 如果該句還沒答過，就算這句答對
+            answered = true;
             btn.style.background = '#c8f7c5';
-            btn.disabled = true;
+            score += 10;
+            updateScoreDisplay();
+            correctCount++;
+            finishLevelIfNeeded();
           } else {
-            score -= 5;
             btn.style.background = '#f7c5c5';
+            score -= 5;
+            updateScoreDisplay();
           }
-          if (correctCount === 4) finishLevel();
+          btn.disabled = true;
         };
-        area.appendChild(btn);
+        sentenceWrapper.appendChild(btn);
       });
-    } else if (gameIndex === 2) { // 填空
-      let parts = s.split(/[，；。]/).filter(p => p);
-      let missing = parts[1];
-      let display = s.replace(missing, '______');
-      let displayP = document.createElement('p');
+
+      function finishLevelIfNeeded() {
+        if (correctCount === 4) finishLevel();
+      }
+
+    } else if (gameIndex === 2) {
+      // 佳句填空：每句固定抽一段做答案
+      const parts = correctParts;
+      // 隨機選一段當填空答案（或按 levelIndex 取，可自行調整）
+      const answerIdx = levelIndex % parts.length;
+      const missing = parts[answerIdx];
+      const display = s.replace(missing, '______');
+
+      const displayP = document.createElement('p');
       displayP.textContent = display;
-      area.appendChild(displayP);
+      sentenceWrapper.appendChild(displayP);
+
       let opts = [missing, "亂填短語", "假短語"].sort(() => Math.random() - 0.5);
       opts.forEach(o => {
-        let btn = document.createElement('button');
+        const btn = document.createElement('button');
         btn.className = 'game-btn option';
         btn.textContent = o;
         btn.onclick = () => {
+          if (btn.classList.contains('disabled')) return;
+          btn.classList.add('disabled');
           if (o === missing) {
-            score += 10;
-            correctCount++;
             btn.style.background = '#c8f7c5';
-          } else {
-            score -= 5;
-            btn.style.background = '#f7c5c5';
-          }
-          if (correctCount === 4) finishLevel();
-        };
-        area.appendChild(btn);
-      });
-    } else if (gameIndex === 3) { // 連連看
-      let parts = s.split(/[，；。]/).filter(p => p);
-      let targets = [...parts].sort(() => Math.random() - 0.5);
-      targets.forEach(t => {
-        let dz = document.createElement('div');
-        dz.className = 'dropzone';
-        dz.textContent = '放置短語';
-        dz.ondragover = e => e.preventDefault();
-        dz.ondrop = e => {
-          e.preventDefault();
-          let data = e.dataTransfer.getData('text/plain');
-          if (data === t) {
-            dz.textContent = data;
-            dz.style.background = '#c8f7c5';
             score += 10;
             correctCount++;
           } else {
+            btn.style.background = '#f7c5c5';
             score -= 5;
-            dz.style.background = '#f7c5c5';
           }
+          updateScoreDisplay();
           if (correctCount === 4) finishLevel();
         };
-        area.appendChild(dz);
+        sentenceWrapper.appendChild(btn);
       });
+
+    } else if (gameIndex === 3) {
+      // 佳句連連看：把每句唯一一段放到對應 dropzone
+      const parts = correctParts;
+      // 建立 1 個 dropzone 對應這一句
+      let sentenceDone = false;
+      const target = parts[0]; // 固定用第一段作匹配，也可以隨機
+      const dz = document.createElement('div');
+      dz.className = 'dropzone';
+      dz.textContent = '放置短語';
+      dz.ondragover = e => e.preventDefault();
+      dz.ondrop = e => {
+        e.preventDefault();
+        if (sentenceDone) return;
+        const data = e.dataTransfer.getData('text/plain');
+        if (data === target) {
+          dz.textContent = data;
+          dz.style.background = '#c8f7c5';
+          sentenceDone = true;
+          score += 10;
+          updateScoreDisplay();
+          correctCount++;
+          finishLevelIfNeeded();
+        } else {
+          dz.style.background = '#f7c5c5';
+          score -= 5;
+          updateScoreDisplay();
+          setTimeout(() => {
+            if (!sentenceDone) {
+              dz.textContent = '放置短語';
+              dz.style.background = '#e0e0e0';
+            }
+          }, 500);
+        }
+      };
+      sentenceWrapper.appendChild(dz);
+
+      // 顯示可拖曳的短語：僅出現所有正確短語
       parts.forEach(p => {
-        let span = document.createElement('span');
+        const span = document.createElement('span');
         span.className = 'sentence-part';
         span.textContent = p;
         span.draggable = true;
         span.ondragstart = e => e.dataTransfer.setData('text/plain', p);
-        area.appendChild(span);
+        sentenceWrapper.appendChild(span);
       });
+
+      function finishLevelIfNeeded() {
+        if (correctCount === 4) finishLevel();
+      }
     }
   });
 }
